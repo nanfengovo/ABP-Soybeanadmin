@@ -104,7 +104,6 @@ public class OpenIddictDataSeedContributor : IDataSeedContributor, ITransientDep
         }
 
         // 新增支持密码模式的客户端（修正后）
-        // 新增支持密码模式的客户端（修正后）
         await CreateApplicationAsync(
             name: "ABP_Admin_Password",
             type: OpenIddictConstants.ClientTypes.Public,

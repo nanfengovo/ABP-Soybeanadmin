@@ -75,7 +75,7 @@ public class ABP_AdminHttpApiHostModule : AbpModule
         Configure<AbpAntiForgeryOptions>(options =>
         {
             options.TokenCookie.Expiration = TimeSpan.Zero;
-            options.AutoValidate = false; //±íÊ¾²»ÑéÖ¤·ÀÎ±ÁîÅÆ
+            options.AutoValidate = false; //ï¿½ï¿½Ê¾ï¿½ï¿½ï¿½ï¿½Ö¤ï¿½ï¿½Î±ï¿½ï¿½ï¿½ï¿½
                                           //options.AutoValidateIgnoredHttpMethods.Remove("GET");
                                           //options.AutoValidateFilter =
                                           //    type => !type.Namespace.StartsWith("MyProject.MyIgnoredNamespace");
@@ -162,6 +162,27 @@ public class ABP_AdminHttpApiHostModule : AbpModule
                 options.SwaggerDoc("v1", new OpenApiInfo { Title = "ABP_Admin API", Version = "v1" });
                 options.DocInclusionPredicate((docName, description) => true);
                 options.CustomSchemaIds(type => type.FullName);
+
+                // 1. ï¿½ï¿½ï¿½ï¿½ Host ï¿½ï¿½Ä¿ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½×¢ï¿½Í£ï¿½Í¨ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ Controllerï¿½ï¿½
+                var hostXml = $"{typeof(ABP_AdminHttpApiHostModule).Assembly.GetName().Name}.xml";
+                var hostPath = Path.Combine(AppContext.BaseDirectory, hostXml);
+                if (File.Exists(hostPath)) options.IncludeXmlComments(hostPath);
+
+                // 2. ï¿½ï¿½ï¿½ï¿½ Application.Contracts ï¿½ï¿½Ä¿ï¿½ï¿½×¢ï¿½Í£ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ó¿Úºï¿½ DTO ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+                var contractsXml = "ABP_Admin.Application.Contracts.xml";
+                var contractsPath = Path.Combine(AppContext.BaseDirectory, contractsXml);
+                if (File.Exists(contractsPath))
+                {
+                    options.IncludeXmlComments(contractsPath);
+                }
+
+                // 3. ï¿½ï¿½ï¿½ï¿½ Application ï¿½ï¿½Ä¿ï¿½ï¿½×¢ï¿½Í£ï¿½Êµï¿½ï¿½ï¿½ï¿½ï¿½×¢ï¿½Í£ï¿½
+                var applicationXml = "ABP_Admin.Application.xml";
+                var applicationPath = Path.Combine(AppContext.BaseDirectory, applicationXml);
+                if (File.Exists(applicationPath))
+                {
+                    options.IncludeXmlComments(applicationPath);
+                }
             });
     }
 

@@ -263,3 +263,7 @@ src/ABP_Admin.Blazor.Server.Tiered/Logs/*
 
 # Use abp install-libs to restore.
 **/wwwroot/libs/*
+
+aspnet-core/nul
+
+**/nul
