@@ -2,7 +2,7 @@ import { computed, reactive, ref } from 'vue';
 import { useRoute } from 'vue-router';
 import { defineStore } from 'pinia';
 import { useLoading } from '@sa/hooks';
-import { fetchGetUserInfo, fetchLogin } from '@/service/api';
+import { fetchGetUserInfo, fetchLogin,fetchGetRoleByUserId,fetchGetPermissionsByRole } from '@/service/api';
 import { useRouterPush } from '@/hooks/common/router';
 import { localStg } from '@/utils/storage';
 import { SetupStoreId } from '@/enum';
@@ -99,10 +99,14 @@ export const useAuthStore = defineStore(SetupStoreId.Auth, () => {
   async function login(userName: string, password: string, redirect = true) {
     startLoading();
 
-    const { data: loginToken, error } = await fetchLogin(userName, password);
+    //1、获取Token
+    const { data: result, error } = await fetchLogin(userName, password);
 
     if (!error) {
-      const pass = await loginByToken(loginToken);
+      //2、保存Token等信息到本地
+      const pass = await loginByToken(result);
+      //3、获取用户信息
+      const userPass = await getUserInfo(userName);
 
       if (pass) {
         // Check if the tab needs to be cleared
@@ -130,28 +134,42 @@ export const useAuthStore = defineStore(SetupStoreId.Auth, () => {
 
   async function loginByToken(loginToken: Api.Auth.LoginToken) {
     // 1. stored in the localStorage, the later requests need it in headers
-    localStg.set('token', loginToken.token);
-    localStg.set('refreshToken', loginToken.refreshToken);
-
-    // 2. get user info
-    const pass = await getUserInfo();
-
-    if (pass) {
-      token.value = loginToken.token;
-
+      // 注意：ABP 默认返回的是 access_token
+      localStg.set('token', loginToken.access_token); 
+      
+      // 注意：ABP 默认返回的是 refresh_token
+      localStg.set('refreshToken', loginToken.refresh_token); 
+      token.value = loginToken.access_token;
       return true;
-    }
-
-    return false;
   }
 
-  async function getUserInfo() {
-    const { data: info, error } = await fetchGetUserInfo();
+  async function getUserInfo(userName: string) {
+    const { data: info, error } = await fetchGetUserInfo(userName);
 
-    if (!error) {
-      // update store
-      Object.assign(userInfo, info);
+    if (!error && info) {
+      // update store - 映射 ABP 用户字段到本地 userInfo
+      userInfo.userId = info.id;
+      userInfo.userName = info.userName;
 
+      // update routes based on roles
+      const { data, error } = await fetchGetRoleByUserId(info.id);
+
+      if (!error && data) {
+        // 提取角色名称数组，例如: ['admin', 'operator']
+        const roles = data.items.map(role => role.name);
+        roles.forEach(element => async () => {
+          const { data, error } = await fetchGetPermissionsByRole(element);
+          if (!error && data) {
+            data.groups.forEach(group => {
+              group.permissions.forEach(permission => {
+                if (permission.isGranted && !userInfo.buttons.includes(permission.name)) {
+                  userInfo.buttons.push(permission.name);
+                }
+              });
+            });
+          }
+        });
+      }
       return true;
     }
 
@@ -162,7 +180,7 @@ export const useAuthStore = defineStore(SetupStoreId.Auth, () => {
     const hasToken = getToken();
 
     if (hasToken) {
-      const pass = await getUserInfo();
+      const pass = await getUserInfo(userInfo.userName);
 
       if (!pass) {
         resetStore();

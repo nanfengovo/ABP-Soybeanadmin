@@ -1,4 +1,6 @@
 import { request } from '../request';
+import qs from 'qs';
+
 
 /**
  * Login
@@ -8,18 +10,31 @@ import { request } from '../request';
  */
 export function fetchLogin(userName: string, password: string) {
   return request<Api.Auth.LoginToken>({
-    url: '/auth/login',
+    url: '/connect/token',
     method: 'post',
-    data: {
-      userName,
-      password
+    data: qs.stringify({
+      grant_type: 'password',
+      client_id: 'ABP_Admin_Password',
+      scope: 'ABP_Admin offline_access',
+      username: userName,
+      password: password
+    }),headers:{
+      'Content-Type': 'application/x-www-form-urlencoded'
     }
   });
 }
 
 /** Get user info */
-export function fetchGetUserInfo() {
-  return request<Api.Auth.UserInfo>({ url: '/auth/getUserInfo' });
+export function fetchGetUserInfo(userName: string) {
+  return request<Api.Auth.AbpUserInfo>({ url: `/api/identity/users/by-username/${userName}` });
+}
+
+export function fetchGetRoleByUserId(userId: string) {
+  return request<Api.Auth.AbpListResult<Api.Auth.Role>>({ url: `/api/identity/users/${userId}/roles` });
+}
+
+export function fetchGetPermissionsByRole(roleName: string) {
+  return request<Api.Auth.AbpPermissionResult>({ url: `/api/permission-management/permissions`,params: { providerName: 'R', providerKey: roleName } });
 }
 
 /**

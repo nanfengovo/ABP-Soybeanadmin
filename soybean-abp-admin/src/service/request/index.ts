@@ -23,6 +23,10 @@ export const request = createFlatRequest(
       refreshTokenPromise: null
     } as RequestInstanceState,
     transform(response: AxiosResponse<App.Service.Response<any>>) {
+      // 如果响应没有 data 字段（如 OAuth2 token 响应或 ABP 标准响应），直接返回整个响应数据
+      if (response.data && response.data.data === undefined) {
+        return response.data;
+      }
       return response.data.data;
     },
     async onRequest(config) {
@@ -32,6 +36,10 @@ export const request = createFlatRequest(
       return config;
     },
     isBackendSuccess(response) {
+      // 如果响应没有 code 字段（如 OAuth2 token 响应或 ABP 标准响应），根据 HTTP 状态码判断
+      if (response.data && response.data.code === undefined) {
+        return response.status >= 200 && response.status < 300;
+      }
       // when the backend response code is "0000"(default), it means the request is success
       // to change this logic by yourself, you can modify the `VITE_SERVICE_SUCCESS_CODE` in `.env` file
       return String(response.data.code) === import.meta.env.VITE_SERVICE_SUCCESS_CODE;
@@ -148,23 +156,27 @@ export const demoRequest = createRequest(
     isBackendSuccess(response) {
       // when the backend response code is "200", it means the request is success
       // you can change this logic by yourself
-      return response.data.status === '200';
+      return response.status >= 200 && response.status < 300;
     },
-    async onBackendFail(_response) {
-      // when the backend response code is not "200", it means the request is fail
-      // for example: the token is expired, refresh token and retry request
-    },
-    onError(error) {
-      // when the request is fail, you can show error message
+    async onBackendFail(response, instance) {
+    // 使用 any 绕过对 DemoResponse 结构的强类型限制
+      const responseData = response.data as any;
 
-      let message = error.message;
+      // 适配 ABP 的多种错误信息来源
+      const errorMsg = responseData?.error_description // 登录接口错误
+                    || responseData?.error?.message    // 业务接口错误
+                    || responseData?.msg              // 原始 Soybean 适配
+                    || '请求失败';
 
-      // show backend error message
-      if (error.code === BACKEND_ERROR_CODE) {
-        message = error.response?.data?.message || message;
+      window.$message?.error(errorMsg);
+      
+      // 如果是 401 且不是登录接口，尝试刷新 token 或重置 store
+      if (response.status === 401 && !response.config.url?.includes('/connect/token')) {
+        const authStore = useAuthStore();
+        authStore.resetStore();
       }
 
-      window.$message?.error(message);
+      return null;
     }
   }
 );
