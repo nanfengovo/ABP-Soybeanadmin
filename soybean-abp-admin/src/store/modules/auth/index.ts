@@ -105,6 +105,7 @@ export const useAuthStore = defineStore(SetupStoreId.Auth, () => {
     if (!error) {
       //2、保存Token等信息到本地
       const pass = await loginByToken(result);
+      localStorage.setItem('token', result.access_token);
       //3、获取用户信息
       const userPass = await getUserInfo(userName);
 
@@ -151,12 +152,17 @@ export const useAuthStore = defineStore(SetupStoreId.Auth, () => {
       userInfo.userId = info.id;
       userInfo.userName = info.userName;
 
+      localStg.set('userName', info.userName);
+      localStg.set('userId', info.id);
+
       // update routes based on roles
       const { data, error } = await fetchGetRoleByUserId(info.id);
 
       if (!error && data) {
         // 提取角色名称数组，例如: ['admin', 'operator']
         const roles = data.items.map(role => role.name);
+        userInfo.roles = roles;
+        localStg.set('roles', roles);
         roles.forEach(element => async () => {
           const { data, error } = await fetchGetPermissionsByRole(element);
           if (!error && data) {
@@ -180,9 +186,16 @@ export const useAuthStore = defineStore(SetupStoreId.Auth, () => {
     const hasToken = getToken();
 
     if (hasToken) {
-      const pass = await getUserInfo(userInfo.userName);
-
-      if (!pass) {
+      //从localStorage 恢复用户信息
+      const savedUserName = localStg.get('userName');
+      const saveUserId = localStg.get('userId');
+      const saveRoles = localStg.get('roles')||[];
+      if(savedUserName && saveUserId){
+        //恢复基本信息
+        userInfo.userName = savedUserName;
+        userInfo.userId = saveUserId;
+        userInfo.roles = saveRoles;
+      }else{
         resetStore();
       }
     }
